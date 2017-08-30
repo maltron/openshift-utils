@@ -3,18 +3,20 @@
   hosts: localhost
   connection: false
   tasks:
-     - name: "Using filename: {{ filename }}
+     - name: "Using filename: {{ filename }}"
        fail: msg="filename is not defined"
        when: filename is not defined
 
      - name: Fetch only the filename without extension .vdi
        set_fact: filename_only={{ filename | regex_replace(".vdi$","") }}
 
-     - name: Convert a VDI into a RAW format
+     - name: Convert a VDI ({{filename}}) into a RAW format (disk.raw)
        command: VBoxManage clonehd {{ filename }} disk.raw -format RAW
 
-     - name: Compact RAW format into a .tar.gz
+     - name: Compact RAW format into a {{ filename_only }}.tar.gz
        command: gtar -cSzf {{ filename_only }}.tar.gz disk.raw
 
      - name: Deleting RAW file
        file: path=disk.raw state=absent
+
+     - debug: msg="File {{ filename_only }}.tar.gz is ready to be upload to GCE"

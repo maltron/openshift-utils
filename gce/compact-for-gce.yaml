@@ -10,6 +10,10 @@
      - name: Fetch only the filename without extension .vdi
        set_fact: filename_only={{ filename | regex_replace(".vdi$","") }}
 
+     - name: Delete disk.raw (if exists)
+       file: path=disk.raw state=absent
+       ignore_errors: True
+
      - name: Convert a VDI ({{filename}}) into a RAW format (disk.raw)
        command: VBoxManage clonehd {{ filename }} disk.raw -format RAW
 

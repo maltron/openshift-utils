@@ -1,0 +1,29 @@
+- hosts: localhost  
+  connection: local
+  gather_facts: False
+  vars: 
+     subscription_name: "Employee SKU"
+     subscription_type: "Virtual"
+  tasks:
+     - name: Delete a existing file (if exists)
+       file: path=/tmp/repositories_available.txt state=absent
+       ignore_errors: True
+
+     - name: List of all possible repositories available
+       shell: subscription-manager list --available > /tmp/repositories_available.txt
+
+     - name: "Fetching information about the subscription: {{ subscription_name }} type: {{ subscription_type }}"
+       command: "sed -n '/Subscription Name:   {{ subscription_name }}/{p; :loop n; p; /System Type:         {{ subscription_type }}/q; b loop}' /tmp/repositories_available.txt"
+       register: subscription_info
+       tags: 
+          - fetch
+
+     - name: Fetching Pool ID in this subscription
+       set_fact: fetch_subscription_id={{ subscription_info.stdout | regex_replace("(?s)^.*?Pool ID:\s+", "") |
+                                                                     regex_replace("(?s)\\n.*$","") }}
+       tags:
+          - fetch
+
+     - debug: msg="Subscription ID{{ ':' }} {{ fetch_subscription_id }}"
+       tags:
+          - fetch

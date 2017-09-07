@@ -1,0 +1,32 @@
+---
+- name: Setup all the necessary OpenShift's IP's in this host
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  vars_prompt:
+     - name: openshift_master_ip
+       prompt: "OpenShift's Master IP"
+       private: False
+     - name: openshift_infranode_ip
+       prompt: "OpenShift's InfraNode IP"
+       private: False
+  tasks:
+     - name: Updating OpenShift's Master IP{{ ':' }}{{ openshift_master_ip }} into /etc/hosts
+       lineinfile: dest=/etc/hosts state=present regexp="master.testdrive.com"  line="{{ openshift_master_ip }}  master.testdrive.com"
+
+     - name: Updating OpenShift's InfraNode IP{{ ':' }}{{ openshift_infranode_ip }} into /var/named/dynamic/cloudapps.testdrive.com.db
+       lineinfile: dest=/var/named/dynamic/cloudapps.testdrive.com.db state=present regexp="^[*]" line="* A {{ openshift_infranode_ip }}"
+
+     - name: Restart Network Service
+       service: name=network state=restarted
+
+     - name: Remove any existing entry into /etc/resolv.conf point to 127.0.0.1
+       lineinfile: dest=/etc/resolv.conf state=absent line="nameserver 127.0.0.1"
+       ignore_errors: True
+
+     - name: Add entry into /etc/resolv.conf point to 127.0.0.1 just after search
+       lineinfile: dest=/etc/resolv.conf state=present insertafter="^search" line="nameserver 127.0.0.1"
+
+     - name: Restart BIND Service
+       service: name=named state=restarted enabled=true
+       

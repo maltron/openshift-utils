@@ -24,8 +24,8 @@
        lineinfile: dest=/etc/resolv.conf state=absent line="nameserver 127.0.0.1"
        ignore_errors: True
 
-     - name: Add entry into /etc/resolv.conf point to 127.0.0.1 just after search
-       lineinfile: dest=/etc/resolv.conf state=present insertafter="^search" line="nameserver 127.0.0.1"
+     - name: Add entry into /etc/resolv.conf point to 127.0.0.1 just after # Generated
+       lineinfile: dest=/etc/resolv.conf state=present insertafter="^[\#] Generated" line="nameserver 127.0.0.1"
 
      - name: Restart BIND Service
        service: name=named state=restarted enabled=true

@@ -1,0 +1,90 @@
+---
+- name: Creating all the necessary pods for infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+     openshift_master: "https://openshift.example.com:8443"
+     registry_console_hostname: "registry.cloudapps.example.com"
+  tasks:
+     - name: Deleting Docker Registry resources previously created
+       command: oc delete {{ item.resource }}/{{ item.name }} --namespace default
+       with_items:
+          - { resource : "route", name : "docker-registry" }
+          - { resource : "deploymentconfig", name : "docker-registry" }
+          - { resource : "service", name : "docker-registry" }
+          - { resource : "serviceaccount", name : "registry" }
+          - { resource : "clusterrolebinding", name : "registry-registry-role" }
+       ignore_errors: True
+       tags:
+          - registry_console
+          - docker_registry
+
+     - name: Creating Docker Registry
+       command: oadm registry --config=/etc/origin/master/admin.kubeconfig --service-account=registry --images='registry.access.redhat.com/openshift3/ose-${component}:${version}'
+       tags:
+          - registry_console
+          - docker_registry
+
+     - name: Create a Route for Docker Registry (Needed for Registry Console)
+       command: oc expose service/docker-registry --hostname=docker-registry.cloudapps.example.com --namespace default
+       tags:
+          - registry_console
+          - docker_registry
+
+     - name: Deleting Registry Console resources previously created
+       command: oc delete {{ item.resource }}/{{ item.name }} --namespace default
+       with_items:
+          - { resource : "imagestream", name : "registry-console" }
+          - { resource : "deploymentconfig", name : "registry-console" }
+          - { resource : "route", name : "registry-console" }
+          - { resource : "service", name : "registry-console" }
+          - { resource : "oauthclient", name : "cockpit-oauth-client" }
+       ignore_errors: True
+       tags:
+          - registry_console
+
+     - name: "Creating Registry Console (part 1/2): Creating Route type passthrough"
+       command: oc create route passthrough --service registry-console --port registry-console --namespace default
+       when: registry_console_hostname is not defined 
+       tags:
+          - registry_console
+
+     - name: "Creating Registry Console (part 1/2): Creating Route type passthrough"
+       command: oc create route passthrough --service registry-console --port registry-console --hostname={{ registry_console_hostname }} --namespace default
+       when: registry_console_hostname is defined
+       tags:
+          - registry_console
+
+     - name: Fetching Docker Registry's Route
+       command: oc get route/docker-registry --output jsonpath='{.spec.host}' --namespace default
+       register: route_docker_registry
+       tags:
+          - registry_console
+
+     - name: Fetching Registry Console's Route
+       command: oc get route/registry-console --output jsonpath='https://{.spec.host}' --namespace default
+       register: route_registry_console
+       tags:
+          - registry_console
+  
+     - name: "Creating Registry Console (part 2/2): Deploying Application"
+       command: oc new-app --template=registry-console -p OPENSHIFT_OAUTH_PROVIDER_URL="{{ openshift_master }}" --param=REGISTRY_HOST={{ route_docker_registry.stdout }} --param=COCKPIT_KUBE_URL={{ route_registry_console.stdout }} --namespace default
+       tags: 
+          - registry_console
+
+     - name: Deleting Router resources previously created
+       command: oc delete {{ item.resource }}/{{ item.name }} --namespace default
+       with_items:
+          - { resource : "serviceaccount",     name : "router" }
+          - { resource : "clusterrolebinding", name : "router-router-role" }
+          - { resource : "deploymentconfig", name : "router" }
+          - { resource : "service", name : "router" }
+       ignore_errors: True
+       tags:
+          - router
+
+     - name: Creating Router
+       command: oc adm router --replicas=1 --service-account=router
+       tags:
+          - router

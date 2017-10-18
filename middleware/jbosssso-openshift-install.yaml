@@ -69,43 +69,43 @@
           - keystore
 
      - name: Generate CA Certificate 1/2
-       command: openssl req -new -newkey rsa:4096 -x509 -keyout xpaas.key -out xpaas.crt -days 365 -subj "/CN=xpaas-sso-demo.ca" -passin pass:maltron -passout pass:maltron
+       command: openssl req -new -newkey rsa:4096 -x509 -keyout xpaas.key -out xpaas.crt -days 365 -subj "/CN=xpaas-sso-demo.ca" -passin pass:{{ password }} -passout pass:{{ password }}
        tags:
           - keystore
 
      - name: Generate CA Certificate 2/2
-       command: keytool -genkeypair -keyalg RSA -keysize 2048 -dname "CN=secure.cloudapps.testdrive.com" -alias sso-https-key -keystore sso-https.jks -storepass maltron -keypass maltron -noprompt
+       command: keytool -genkeypair -keyalg RSA -keysize 2048 -dname "CN=secure-sso.{{ domain }}" -alias sso-https-key -keystore sso-https.jks -storepass {{ password }} -keypass {{ password }} -noprompt
        tags:
           - keystore
 
      - name: Sign the Certificate Sign Request with the CA Certificate 1/2
-       command: keytool -certreq -keyalg rsa -alias sso-https-key -keystore sso-https.jks -file sso.csr -storepass maltron -noprompt
+       command: keytool -certreq -keyalg rsa -alias sso-https-key -keystore sso-https.jks -file sso.csr -storepass {{ password }} -noprompt
        tags:
           - keystore
 
      - name: Sign the Certificate Sign Request with the CA Certificate 2/2
-       command: openssl x509 -req -CA xpaas.crt -CAkey xpaas.key -in sso.csr -out sso.crt -days 365 -CAcreateserial -passin pass:maltron
+       command: openssl x509 -req -CA xpaas.crt -CAkey xpaas.key -in sso.csr -out sso.crt -days 365 -CAcreateserial -passin pass:{{ password }}
        tags:
           - keystore
 
      - name: Import the CA into SSL keystore
-       command: keytool -import -file xpaas.crt -alias xpaas.ca -keystore sso-https.jks -storepass maltron -noprompt
+       command: keytool -import -file xpaas.crt -alias xpaas.ca -keystore sso-https.jks -storepass {{ password }} -noprompt
        tags:
           - keystore
 
      - name: Import the CA into a new truststore keystore
-       command: keytool -import -file sso.crt -alias sso-https-key -keystore sso-https.jks -storepass maltron -noprompt
+       command: keytool -import -file sso.crt -alias sso-https-key -keystore sso-https.jks -storepass {{ password }} -noprompt
        tags:
           - keystore
      
      - name: Generate a secure key for JGroups keystore 1/2
-       command: keytool -import -file xpaas.crt -alias xpaas.ca -keystore truststore.jks -storepass maltron -noprompt
+       command: keytool -import -file xpaas.crt -alias xpaas.ca -keystore truststore.jks -storepass {{ password }} -noprompt
        tags:
           - keystore
           - jgroups
 
      - name: Generate a secure key for JGroups keystore 2/2
-       command: keytool -genseckey -alias jgroups -storetype JCEKS -keystore jgroups.jceks -keypass maltron -storepass maltron -noprompt
+       command: keytool -genseckey -alias jgroups -storetype JCEKS -keystore jgroups.jceks -keypass {{ password }} -storepass {{ password }} -noprompt
        tags:
           - keystore
           - jgroups
@@ -128,7 +128,7 @@
        command: oc policy add-role-to-user view system:serviceaccount:{{ namespace }}:sso-service-account --namespace {{ namespace }}
 
      - name: "Creating application: sso71-mysql"
-       command: oc new-app sso71-mysql -p APPLICATION_NAME=sso -p HOSTNAME_HTTP=sso.cloudapps.testdrive.com -p HOSTNAME_HTTPS=secure-sso.cloudapps.testdrive.com -p DB_DATABASE=sso -p SERVICE_ACCOUNT_NAME=sso-service-account -p HTTPS_SECRET=sso-ssl-secret -p HTTPS_KEYSTORE=sso-https.jks -p HTTPS_KEYSTORE_TYPE=JKS -p HTTPS_NAME=sso-https-key -p HTTPS_PASSWORD=maltron -p DB_USERNAME=maltron -p DB_PASSWORD=maltron -p JGROUPS_ENCRYPT_SECRET=sso-jgroup-secret -p JGROUPS_ENCRYPT_KEYSTORE=jgroups.jceks -p JGROUPS_ENCRYPT_NAME=jgroups -p JGROUPS_ENCRYPT_PASSWORD=maltron -p SSO_TRUSTSTORE=truststore.jks -p SSO_TRUSTSTORE_PASSWORD=maltron -p SSO_TRUSTSTORE_SECRET=sso-ssl-secret
+       command: oc new-app sso71-mysql -p APPLICATION_NAME=sso -p HOSTNAME_HTTP=sso.{{ domain }} -p HOSTNAME_HTTPS=secure-sso.{{ domain }} -p DB_DATABASE=sso -p SERVICE_ACCOUNT_NAME=sso-service-account -p HTTPS_SECRET=sso-ssl-secret -p HTTPS_KEYSTORE=sso-https.jks -p HTTPS_KEYSTORE_TYPE=JKS -p HTTPS_NAME=sso-https-key -p HTTPS_PASSWORD={{ password }} -p DB_USERNAME={{ username }} -p DB_PASSWORD={{ password }} -p JGROUPS_ENCRYPT_SECRET=sso-jgroup-secret -p JGROUPS_ENCRYPT_KEYSTORE=jgroups.jceks -p JGROUPS_ENCRYPT_NAME=jgroups -p JGROUPS_ENCRYPT_PASSWORD={{ password }} -p SSO_TRUSTSTORE=truststore.jks -p SSO_TRUSTSTORE_PASSWORD={{ password }} -p SSO_TRUSTSTORE_SECRET=sso-ssl-secret --namespace {{ namespace }}
 
      - name: Deleting unecessary files
        file: path=./{{ item }} state=absent

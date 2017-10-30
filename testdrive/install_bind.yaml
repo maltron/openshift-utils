@@ -1,0 +1,33 @@
+--- 
+- name: Installing BIND (DNS Server) for TestDrives
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  tasks:
+    - name: Installing BIND (DNS Server)
+      yum: name={{ item }} state=latest
+      with_items:
+          - bind
+          - bind-utils
+
+    - name: Downloading configuration file /etc/named.conf
+      uri: url=https://raw.githubusercontent.com/latam-tech-office/openshift-utils/master/testdrive/named/etc/named.conf
+
+    - name: Downloading configuration file /var/named/dynamic/cloudapps.testdrive.com.db
+      uri: url=https://raw.githubusercontent.com/latam-tech-office/openshift-utils/master/testdrive/named/var/named/dynamic/cloudapps.testdrive.com.db
+           method=GET status_code=200 creates=True dest=/var/named/dynamic/cloudapps.testdrive.com.db
+
+    - name: Adjust all permissions accordingly to /var/named/dynamic
+      file: path=/var/named/dynamic recurse=True owner=named group=named
+
+    - name: Restore SELinux Permissions into /var/named
+      command: restorecon -Rv /var/named
+
+    - name: Adjust all permissions accordingly to /etc/named.conf
+      file: path=/etc/named.conf owner=root group=named
+
+    - name: Restore SELinux Permissions into /etc/named.conf
+      command: restorecon -v /etc/named.conf
+
+    - name: Start and Enable BIND Service
+      service: name=named state=restarted enabled=true

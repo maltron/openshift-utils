@@ -17,6 +17,7 @@
           - { resource : "clusterrolebinding", name : "registry-registry-role" }
        ignore_errors: True
        tags:
+          - clean
           - registry_console
           - docker_registry
 
@@ -42,6 +43,7 @@
           - { resource : "oauthclient", name : "cockpit-oauth-client" }
        ignore_errors: True
        tags:
+          - clean
           - registry_console
 
      - name: "Creating Registry Console (part 1/2): Creating Route type passthrough"
@@ -82,6 +84,7 @@
           - { resource : "service", name : "router" }
        ignore_errors: True
        tags:
+          - clean
           - router
 
      - name: Creating Router

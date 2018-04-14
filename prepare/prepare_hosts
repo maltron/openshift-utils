@@ -1,0 +1,2 @@
+[prepare_hosts]
+localhost ansible_user=root ansible_password=r3dh4t1! ansible_port=2222

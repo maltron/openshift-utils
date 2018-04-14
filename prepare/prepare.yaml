@@ -1,0 +1,29 @@
+--- 
+- name: Preparing RHEL with subscription and packages
+  hosts: localhost
+  connection: local
+  tasks:
+     - fail: msg="redhat_subscription_username is not defined"
+       when: redhat_subscription_username is not defined
+       tags:
+          - always
+
+     - fail: msg="redhat_subscription_password is not defined"
+
+       when: redhat_subscription_password is not defined
+       tags:
+          - always
+
+     - name: "Check if there a public ssh key: {{ ansible_user_dir }}/.ssh/id_rsa.pub"
+       stat: path={{ ansible_user_dir }}/.ssh/id_rsa.pub
+       register: public_ssh_key
+
+     - name: "Read the contents of Public SSH key: {{ ansible_user_dir }}/.ssh/id_rsa.pub"
+       set_fact: public_ssh_key_content="{{ lookup('file','{{ ansible_user_dir }}/.ssh/id_rsa.pub') }}"
+       when: public_ssh_key.stat.exists
+
+- name: Preparing Host
+  hosts: prepare_hosts
+  roles:
+     - role: prepare
+       public_ssh_key: "{{ hostvars['localhost']['public_ssh_key_content'] }}"

@@ -1,0 +1,46 @@
+- name: Copy local Public SSH Key (if does exists)
+  lineinfile: dest=/root/.ssh/authorized_keys state=present create=yes line="{{ public_ssh_key }}"
+  when: public_ssh_key is defined and public_ssh_key is not none
+
+- name: RED HAT SUBSCRIPTION{{ ':' }} Installing Red Hat's Subscription Manager
+  yum: name=subscription-manager state=latest
+  ignore_errors: True
+
+- name: RED HAT SUBSCRIPTION{{ ':' }} Registering to Red Hat's Subscription Manager
+  command: subscription-manager register --username={{ redhat_subscription_username }}  --password={{ redhat_subscription_password }} --force
+
+- name: RED HAT SUBSCRIPTION:{{ ':' }} Delete a temporary file (if exists) /tmp/repositories_available.txt
+  file: path=/tmp/repositories_available.txt state=absent
+  when: redhat_subscription_pool_id is not defined
+  ignore_errors: True
+
+- name: RED HAT SUBSCRIPTION:{{ ':' }} List of all possible repositories available
+  shell: subscription-manager list --available > /tmp/repositories_available.txt
+  when: redhat_subscription_pool_id is not defined
+
+- name: "RED HAT SUBSCRIPTION: Fetching information about the subscription: {{ redhat_subscription_name }} type: {{ redhat_subscription_type }}"
+  command: "sed -n '/Subscription Name:   {{ redhat_subscription_name }}/{p; :loop n; p; /System Type:         {{ redhat_subscription_type }}/q; b loop}' /tmp/repositories_available.txt"
+  register: subscription_info
+  when: redhat_subscription_pool_id is not defined
+
+- name: RED HAT SUBSCRIPTION:{{ ':' }} Fetching Pool ID in this subscription
+  set_fact: redhat_subscription_pool_id={{ subscription_info.stdout | regex_replace("(?s)^.*?Pool ID:\s+", "") |
+                                                                regex_replace("(?s)\\n.*$","") }}
+  when: redhat_subscription_pool_id is not defined
+
+- name: RED HAT SUBSCRIPTION{{ ':' }} Attaching a Pool ID{{ ':' }} {{ redhat_subscription_pool_id }}
+  command: subscription-manager attach --pool={{ redhat_subscription_pool_id }}
+
+- name: RED HAT SUBSCRIPTION{{ ':' }} Disable all Repositories
+  command: subscription-manager repos --disable="*"
+
+- name: RED HAT SUBSCRIPTION{{ ':' }} Enabling Repository
+  command: subscription-manager repos --enable={{ item }}
+  with_items: "{{ repositories }}"
+
+- name: Updating the entire host
+  yum: name="*" state=latest
+
+- name: Installing all the necessary applications
+  yum: name="{{ item }}" state=latest
+  with_items: "{{ prereqs_packages }}"

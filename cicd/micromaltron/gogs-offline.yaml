@@ -58,39 +58,34 @@ items:
 - apiVersion: v1
   kind: Service
   metadata:
-    annotations:
-      description: The Gogs server's http port
     labels:
       app: gogs
+      deploymentconfig: gogs
     name: gogs
   spec:
     ports:
-    - name: 3000-tcp
-      port: 3000
+    - port: 3000
       protocol: TCP
       targetPort: 3000
     selector:
       app: gogs
       deploymentconfig: gogs
-- apiVersion: v1 
+- apiVersion: v1
   kind: Route
   metadata:
     labels:
       app: gogs
+      deploymentconfig: gogs
     name: gogs
   spec:
     host: gogs.127.0.0.1.nip.io
+    port:
+      targetPort: 3000
     to:
-      name: gogs
       kind: Service
+      name: gogs
       weight: 100
     wildcardPolicy: None
-  status:
-    ingress:
-    - conditions:
-      host: gogs.127.0.0.1.nip.io
-      routerName: router
-      wildcardPolicy: None
 - apiVersion: v1
   kind: Service
   metadata:

@@ -1,8 +1,8 @@
-# Base on instructions given on this website
+# Based on instructions given from these websites
 # https://docs.microsoft.com/en-us/azure/virtual-machines/linux/redhat-create-upload-vhd#prepare-a-rhel-7-virtual-machine-from-kvm
 # https://access.redhat.com/articles/uploading-rhel-image-to-azure
 # 
-# Some steps are missing because it might Hypervisor Dependent
+# Some steps are might missing due Hypervisor Dependency
 #
 #
 - name: "Step #4: Adding the following into /etc/sysconfig/network"

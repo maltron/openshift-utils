@@ -1,6 +1,9 @@
 # Base on instructions given on this website
 # https://docs.microsoft.com/en-us/azure/virtual-machines/linux/redhat-create-upload-vhd#prepare-a-rhel-7-virtual-machine-from-kvm
 # https://access.redhat.com/articles/uploading-rhel-image-to-azure
+# 
+# Some steps are missing because it might Hypervisor Dependent
+#
 #
 - name: "Step #4: Adding the following into /etc/sysconfig/network"
   lineinfile: path=/etc/sysconfig/network insertafter=EOF line="{{ item.key }}={{ item.value }}"
@@ -55,7 +58,7 @@
   service: name=waagent enabled=True
 
 - name: "Enable Azure Linux Agent to create a swap space"
-  lineinfile: path=/etc/waagent.conf regexp="^ResourceDisk{{ item.key }}" 
+  lineinfile: path=/etc/waagent.conf regexp="^ResourceDisk.{{ item.key }}" 
               line="ResourceDisk.{{ item.key }}={{ item.value }}"
   with_items:
      - { key: "Format", value: "y" }
@@ -65,7 +68,8 @@
      - { key: "SwapSizeMB", value: "2048" }
 
 - name: "Step #14: Deprovision the virtual machine"
-  command: {{ item }}
+  command: "{{ item }}"
   with_items:
      - "waagent -force -deprovision"
      - "export HISTSIZE=0"
+  ignore_errors: True

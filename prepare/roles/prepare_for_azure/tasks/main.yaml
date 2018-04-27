@@ -1,0 +1,71 @@
+# Base on instructions given on this website
+# https://docs.microsoft.com/en-us/azure/virtual-machines/linux/redhat-create-upload-vhd#prepare-a-rhel-7-virtual-machine-from-kvm
+# https://access.redhat.com/articles/uploading-rhel-image-to-azure
+#
+- name: "Step #4: Adding the following into /etc/sysconfig/network"
+  lineinfile: path=/etc/sysconfig/network insertafter=EOF line="{{ item.key }}={{ item.value }}"
+  with_items:
+     - { key: "NETWORKING", value: "yes" }
+     - { key: "HOSTNAME",   value: "localhost.localdomain" }
+
+- name: "Step #5: Making sure the following is at /etc/sysconfig/network-scripts/ifcfg-{{ network_interface }}"
+  lineinfile: path=/etc/sysconfig/network-scripts/ifcfg-{{ network_interface }} 
+              regexp="^{{ item.key }}" 
+              line="{{ item.key }}=\"{{ item.value }}\""
+  with_items:
+     - { key: "DEVICE", value: "{{ network_interface }}" }
+     - { key: "ONBOOT", value: "yes" }
+     - { key: "BOOTPROTO", value: "dhcp" }
+     - { key: "TYPE", value: "Ethernet" }
+     - { key: "USERCTL", value: "no" }
+     - { key: "PEERDNS", value: "yes" }
+     - { key: "IPV6INIT", value: "no" }
+     - { key: "NM_CONTROLLED", value: "no" }
+
+- name: "Step #6: Ensure the network service start at boot time"
+  service: name=network enabled=True
+
+- name: "Step #8: Modify kernel boot line in /etc/default/grub"
+  replace: path=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX=\""
+           replace="GRUB_CMDLINE_LINUX=\"rootdelay=300 console=ttyS0 earlyprintk=ttyS0 "
+
+- name: "Graphical and quiet boot are not useful in a cloud environment"
+  replace: path=/etc/default/grub regexp="{{ item }}" replace=""
+  with_items:
+     - "rhgb"
+     - "quiet"
+     - "crashkernel=auto"
+
+- name: "Step #9: Add Hyper-V modules to initramfs"
+  lineinfile: path=/etc/dracut.conf regexp="^add_drivers" line="add_drivers+=\"hv_vmbus hv_netvsc hv_storvsc\""
+
+- name: "Rebuild initramfs"
+  command: dracut -f -v
+
+- name: "Step #10: Ensure SSH server is installed and configured to start at boot time"
+  service: name=sshd enabled=True
+
+- name: "Modify /etc/ssh/sshd_config to include the following"
+  lineinfile: path=/etc/ssh/sshd_config regexp="^ClientAliveInterval" line="ClientAliveInterval 180"
+
+- name: "Installing Azure Linux Agent"
+  yum: name=WALinuxAgent state=present
+
+- name: "Enabling Azure Linux Agent"
+  service: name=waagent enabled=True
+
+- name: "Enable Azure Linux Agent to create a swap space"
+  lineinfile: path=/etc/waagent.conf regexp="^ResourceDisk{{ item.key }}" 
+              line="ResourceDisk.{{ item.key }}={{ item.value }}"
+  with_items:
+     - { key: "Format", value: "y" }
+     - { key: "Filesystem", value: "ext4" }
+     - { key: "MountPoint", value: "/mnt/resource" }
+     - { key: "EnableSwap", value: "y" }
+     - { key: "SwapSizeMB", value: "2048" }
+
+- name: "Step #14: Deprovision the virtual machine"
+  command: {{ item }}
+  with_items:
+     - "waagent -force -deprovision"
+     - "export HISTSIZE=0"

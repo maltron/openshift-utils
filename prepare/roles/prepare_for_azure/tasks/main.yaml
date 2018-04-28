@@ -10,6 +10,8 @@
   with_items:
      - { key: "NETWORKING", value: "yes" }
      - { key: "HOSTNAME",   value: "localhost.localdomain" }
+  tags:
+     - azure
 
 - name: "Step #5: Making sure the following is at /etc/sysconfig/network-scripts/ifcfg-{{ network_interface }}"
   lineinfile: path=/etc/sysconfig/network-scripts/ifcfg-{{ network_interface }} 
@@ -24,13 +26,19 @@
      - { key: "PEERDNS", value: "yes" }
      - { key: "IPV6INIT", value: "no" }
      - { key: "NM_CONTROLLED", value: "no" }
+  tags:
+     - azure
 
 - name: "Step #6: Ensure the network service start at boot time"
   service: name=network enabled=True
+  tags:
+     - azure
 
 - name: "Step #8: Modify kernel boot line in /etc/default/grub"
   replace: path=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX=\""
            replace="GRUB_CMDLINE_LINUX=\"rootdelay=300 console=ttyS0 earlyprintk=ttyS0 "
+  tags:
+     - azure
 
 - name: "Graphical and quiet boot are not useful in a cloud environment"
   replace: path=/etc/default/grub regexp="{{ item }}" replace=""
@@ -38,24 +46,38 @@
      - "rhgb"
      - "quiet"
      - "crashkernel=auto"
+  tags:
+     - azure
 
 - name: "Step #9: Add Hyper-V modules to initramfs"
   lineinfile: path=/etc/dracut.conf regexp="^add_drivers" line="add_drivers+=\"hv_vmbus hv_netvsc hv_storvsc\""
+  tags:
+     - azure
 
 - name: "Rebuild initramfs"
   command: dracut -f -v
+  tags:
+     - azure
 
 - name: "Step #10: Ensure SSH server is installed and configured to start at boot time"
   service: name=sshd enabled=True
+  tags:
+     - azure
 
 - name: "Modify /etc/ssh/sshd_config to include the following"
   lineinfile: path=/etc/ssh/sshd_config regexp="^ClientAliveInterval" line="ClientAliveInterval 180"
+  tags:
+     - azure
 
 - name: "Installing Azure Linux Agent"
   yum: name=WALinuxAgent state=present
+  tags:
+     - azure
 
 - name: "Enabling Azure Linux Agent"
   service: name=waagent enabled=True
+  tags:
+     - azure
 
 - name: "Enable Azure Linux Agent to create a swap space"
   lineinfile: path=/etc/waagent.conf regexp="^ResourceDisk.{{ item.key }}" 
@@ -66,6 +88,9 @@
      - { key: "MountPoint", value: "/mnt/resource" }
      - { key: "EnableSwap", value: "y" }
      - { key: "SwapSizeMB", value: "2048" }
+  tags:
+     - azure
+     - enable_swap_space
 
 - name: "Step #14: Deprovision the virtual machine"
   command: "{{ item }}"
@@ -73,3 +98,6 @@
      - "waagent -force -deprovision"
      - "export HISTSIZE=0"
   ignore_errors: True
+  tags:
+     - azure
+     - deprovision

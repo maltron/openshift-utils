@@ -1,0 +1,37 @@
+# Based on information from here: Preparing RHEL to be upload into Azure
+# https://docs.microsoft.com/en-us/azure/virtual-machines/linux/redhat-create-upload-vhd#prepare-a-red-hat-based-virtual-machine-from-kvm
+---
+- name: "Azure: Resize a RAW image and convert into VHD. Ensure qemu-img is installed"
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  tasks:
+     - name: "Using rawfile: {{ rawfile }}"
+       fail: msg="rawfile is not defined"
+       when: rawfile is not defined
+
+     - name: Fetch only the filename without extension .raw
+       set_fact: filename={{ rawfile | regex_replace(".raw$","") }}
+
+     - name: "Reference size: 1024*1024" 
+       set_fact: MB={{ 1024*1024 }}
+
+     - name: "Fetch RAW file current size using qemu-img"
+       command: qemu-img info -f raw --output json "{{ rawfile }}"
+       register: qemu_result
+
+     - name: Getting the second line and retrieving the virtual-size number
+       set_fact: size="{{ qemu_result.stdout_lines[1] | regex_replace("(.*):[ ]","") | regex_replace(",[ ]$", "") | int }}"
+
+     - name: "Calculating a rounded size based on size: {{ size }}"
+       set_fact: rounded_size={{ (((size | int / MB | int) + 1) * MB | int) | int }}
+
+     - name: "Resizing the file to a rounded size: {{ rounded_size }}"
+       command: qemu-img resize {{ rawfile }} {{ rounded_size }}
+
+     - name: "Removing any existing VHD file"
+       file: path={{ filename }}.vhd state=absent
+       ignore_errors: True
+
+     - name: Converting {{ rawfile}} into a fixed-size {{ filename }}.vhd
+       command: qemu-img convert -f raw -o subformat=fixed -O vpc {{ rawfile}} {{ filename }}.vhd

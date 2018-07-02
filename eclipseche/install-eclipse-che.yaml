@@ -16,25 +16,26 @@
      - name: "Creating project: {{ che_namespace }}"
        command: oc new-project {{ che_namespace }} --display-name="Eclipse Che"
        tags: [ new_project ]
+       ignore_errors: True
 
      - name: "Deploying Postgresql"
-       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/postgres-template.yaml"
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/postgres-template.yaml" --namespace {{ che_namespace }}
 
      - name: "Deploying Keycloak"
-       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/keycloak-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }}
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/keycloak-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }}  --namespace {{ che_namespace }}
 
      - name: "Applying Che Server PersistentVolumeClaim"
-       command: oc apply --filename="{{ che_context_prefix }}/{{ che_context_directory }}/pvc/che-server-pvc.yaml"
+       command: oc apply --filename="{{ che_context_prefix }}/{{ che_context_directory }}/pvc/che-server-pvc.yaml"  --namespace {{ che_namespace }}
 
      - name: "Waiting for KeyCloack to be READY"
-       command: oc get pods --output jsonpath='{.items[?(@.spec.containers[*].name=="keycloak")].status.conditions[?(@.type=="Ready")].status}'
+       command: oc get pods --output jsonpath='{.items[?(@.spec.containers[*].name=="keycloak")].status.conditions[?(@.type=="Ready")].status}' --namespace {{ che_namespace }}
        register: keycloak_wait
        until: "{{ 'True' in keycloak_wait.stdout }}"
        retries: 60
        delay: 10
 
      - name: "Deploying Che"
-       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/che-server-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} -p CHE_MULTIUSER=true
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/che-server-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} -p CHE_MULTIUSER=true --namespace {{ che_namespace }}
 
      - name: "Setting a Volume into DeploymentConfig"
-       command: oc set volume dc/che --add -m /data --name=che-data-volume --claim-name=che-data-volume
+       command: oc set volume dc/che --add -m /data --name=che-data-volume --claim-name=che-data-volume --namespace {{ che_namespace }}

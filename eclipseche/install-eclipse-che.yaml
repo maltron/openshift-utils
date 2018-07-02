@@ -1,0 +1,40 @@
+---
+- name: Installing Eclipse Che based on https://www.eclipse.org/che/docs/openshift-multi-user.html#openshift-container-platform
+  hosts: localhost
+  connection: local
+  vars:
+     che_github_repository: "https://github.com/eclipse/che"
+     che_context_prefix: "/tmp/eclipseche"
+     che_context_directory: "deploy/openshift/templates"
+     che_namespace: che
+     che_routing_suffix: cloudapps.maltron.solutionarchitectsredhat.com.br
+  tasks:
+     - name: "Git Cloning: {{ che_github_repository }}"
+       git: repo={{ che_github_repository }} dest={{ che_context_prefix }}
+       tags: [ git ]
+
+     - name: "Creating project: {{ che_namespace }}"
+       command: oc new-project {{ che_namespace }} --display-name="Eclipse Che"
+       tags: [ new_project ]
+
+     - name: "Deploying Postgresql"
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/postgres-template.yaml"
+
+     - name: "Deploying Keycloak"
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/keycloak-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }}
+
+     - name: "Applying Che Server PersistentVolumeClaim"
+       command: oc apply --filename="{{ che_context_prefix }}/{{ che_context_directory }}/pvc/che-server-pvc.yaml"
+
+     - name: "Waiting for KeyCloack to be READY"
+       command: oc get pods --output jsonpath='{.items[?(@.spec.containers[*].name=="keycloak")].status.conditions[?(@.type=="Ready")].status}'
+       register: keycloak_wait
+       until: "{{ 'True' in keycloak_wait.stdout }}"
+       retries: 60
+       delay: 10
+
+     - name: "Deploying Che"
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/che-server-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} -p CHE_MULTIUSER=true
+
+     - name: "Setting a Volume into DeploymentConfig"
+       command: oc set volume dc/che --add -m /data --name=che-data-volume --claim-name=che-data-volume

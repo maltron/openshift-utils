@@ -1,0 +1,15 @@
+- name: Creating Nexus
+  command: oc new-app https://raw.githubusercontent.com/OpenShiftDemos/nexus-openshift-docker/master/nexus-persistent.yaml --namespace {{ nexus_namespace }}
+
+- name: Removing original Nexus route
+  command: oc delete route/nexus --namespace {{ nexus_namespace }}
+
+- name: Creating a simple route for Nexus
+  command: oc expose service/nexus --hostname=nexus.{{ cloudapps }} --namespace {{ nexus_namespace }}
+
+- name: Wait for Nexus to be Ready
+  command: oc get pods --output jsonpath='{.items[?(@.spec.containers[*].name=="nexus")].status.conditions[?(@.type=="Ready")].status}' --namespace {{ nexus_namespace }}
+  register: nexus_wait
+  until: "'True' in nexus_wait.stdout"
+  retries: 60
+  delay: 10

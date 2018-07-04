@@ -1,0 +1,43 @@
+- name: "Defining Gogs URL: gogs.{{ cloudapps }}"
+  set_fact: gogs_url=gogs.{{ cloudapps }}
+  tags: [ git, migrate ]
+
+- name: Deploying GOGS (a GIT Server)
+  command: oc new-app -f http://bit.ly/openshift-gogs-persistent-template --param=HOSTNAME={{ gogs_url }} --param=SKIP_TLS_VERIFY=true --namespace {{ git_server_namespace }}
+  tags: [ git, gogs ]
+
+- name: Wait for Gogs to be Ready
+  command: oc get pods --output jsonpath='{.items[?(@.spec.containers[*].name=="gogs")].status.conditions[?(@.type=="Ready")].status}' --namespace {{ git_server_namespace }}
+  register: gogs_wait
+  until: "'True' in gogs_wait.stdout"
+  retries: 60
+  delay: 10
+
+- name: Wait for Postgresql-Gogs to be Ready
+  command: oc get pods --output jsonpath='{.items[?(@.spec.containers[*].name=="postgresql")].status.conditions[?(@.type=="Ready")].status}' --namespace {{ git_server_namespace }}
+  register: postgresql_wait
+  until: "'True' in postgresql_wait.stdout"
+  retries: 60
+  delay: 10
+
+- name: Fetch a page to find CSRF
+  uri: url="http://{{ gogs_url }}/user/sign_up"  method=GET status_code=200
+  register: gogs_csrf
+  tags: [ git, gogs, csrf ] 
+
+- name: Isolate CSRF within the request
+  set_fact: csrf={{ gogs_csrf.set_cookie | regex_replace("^(.*)_csrf=","") | regex_replace("[;](.*)$", "") }}
+  tags: [ git, gogs, csrf ] 
+
+- name: "Submit and create user: {{ git_server_username }}, password: {{ git_server_password }}"
+  uri: url="http://{{ gogs_url }}/user/sign_up" method=POST status_code=302
+       headers="Content-type=application/x-www-form-urlencoded"
+       body="_csrf={{ csrf }}&user_name={{ git_server_username }}&email={{ git_server_username }}%40demo.com&password={{ git_server_password }}&retype={{ git_server_password }}"
+  tags: [ git, gogs ]
+
+- name: Migrate OpenShift Tasks TestDrive from GitHub
+  uri: url="http://{{ gogs_url }}/api/v1/repos/migrate" method=POST status_code=201
+       user={{ git_server_username }} password={{ git_server_password }} force_basic_auth=True
+       body_format=json
+       body="{\"clone_addr\"{{ ":" }}\"https{{ ":" }}//github.com/latam-tech-office/openshift-tasks-testdrive.git\",\"uid\"{{ ":" }} 1,\"repo_name\"{{ ":" }} \"openshift-tasks-testdrive\"}"
+  tags: [ git, migrate ]

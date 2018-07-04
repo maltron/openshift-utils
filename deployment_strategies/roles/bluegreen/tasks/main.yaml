@@ -1,0 +1,73 @@
+- name: Make sure Jenkins is able to handle {{ bluegreen_namespace }}
+  command: oc policy add-role-to-user edit system:serviceaccount:{{ jenkins_namespace }}:jenkins -n {{ bluegreen_namespace }}
+  tags: [ bluegreen ]
+
+- name: "Creating application BLUE: {{ application_blue }}"
+  command: oc new-app -f https://raw.githubusercontent.com/latam-tech-office/testdrive-cicd/master/ocp/template/wildfly-mysql.yaml -p APPLICATION_NAME={{ application_blue }} --namespace {{ bluegreen_namespace }}
+  tags: [ bluegreen ]
+
+- name: Deleting an ImageStream/wildfly-mysql to avoid collision
+  command: oc delete is/wildfly-mysql --namespace {{ bluegreen_namespace }}
+  tags: [ bluegreen ]
+
+- name: "Creating application GREEN: {{ application_green }}"
+  command: oc new-app -f https://raw.githubusercontent.com/latam-tech-office/testdrive-cicd/master/ocp/template/wildfly-mysql.yaml -p APPLICATION_NAME={{ application_green }} --namespace {{ bluegreen_namespace }}
+  tags: [ bluegreen ]
+
+- name: Making sure DeploymentConfig is using Rolling Strategy
+  command: oc patch dc/{{ item }} --patch='{"spec":{"strategy":{"type":"Rolling"}}}' --namespace {{ bluegreen_namespace }}
+  with_items:
+      - "{{ application_blue }}-app"
+      - "{{ application_green }}-app"
+  tags: [ bluegreen ]
+
+- name: "Setting readiness probe to http://:8080/ws/ping"
+  command: oc set probe dc/{{ item }} --readiness --initial-delay-seconds=20 --period-seconds=15 --get-url=http://:8080/ws/ping --namespace {{ bluegreen_namespace }}
+  with_items:
+      - "{{ application_blue }}-app"
+      - "{{ application_green }}-app"
+  tags: [ bluegreen ]
+
+- name: Deleting existing routes
+  command: oc delete route {{ item }} --namespace {{ bluegreen_namespace }}
+  with_items:
+      - "{{ application_blue }}-app"
+      - "{{ application_green }}-app"
+  tags: [ bluegreen ]
+
+- name: Creating a single route
+  command: oc expose service/{{ application_blue }}-app --name=tasks --namespace {{ bluegreen_namespace }}
+  tags: [ bluegreen ]
+
+- name: Creating environment variables for each application
+  command: oc env dc/{{ item.deploymentConfig }} DEPLOYMENT_NAME="{{ item.value }}" --namespace {{ bluegreen_namespace }}
+  with_items:
+      - { deploymentConfig: "{{ application_blue }}-app", value: "BLUE" }
+      - { deploymentConfig: "{{ application_green }}-app", value: "GREEN" }
+  tags: [ bluegreen ]
+
+- name: Creating all the necessary BuildConfig (which will be available at Jenkins)
+  command: oc create -n {{ jenkins_namespace }} -f {{ buildconfig_folder }}/{{ item }}
+  with_items:
+      - deploy-blue.yaml
+      - deploy-green.yaml
+      - switch-to-blue.yaml
+      - switch-to-green.yaml
+  ignore_errors: True
+  tags: [ bluegreen ]
+
+- name: "Create a label marking BuildConfig: deployment_technique=bluegreen"
+  command: oc label bc/{{ item }} deployment_technique=bluegreen -n {{ jenkins_namespace }}
+  with_items:
+      - deploy-blue
+      - deploy-green
+      - switch-to-blue
+      - switch-to-green
+  tags: [ bluegreen ]
+
+- name: Start Building in order to make ready to Deploy
+  command: oc start-build {{ item }} -n {{ jenkins_namespace }}
+  with_items:
+      - deploy-blue
+      - deploy-green
+  tags: [ bluegreen ]

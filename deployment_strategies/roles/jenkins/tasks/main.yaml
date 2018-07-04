@@ -1,0 +1,17 @@
+- name: Deploying Jenkins -Persistent-
+  command: oc new-app jenkins-persistent -p ENABLE_OAUTH=true --namespace {{ jenkins_namespace }}
+  tags: [ jenkins ]
+
+- name: Deleting original Jenkins Route
+  command: oc delete route/jenkins --namespace {{ jenkins_namespace }}
+  tags: [ jenkins ]
+
+- name: Creating a simpler Jenkins Route
+  command: oc expose service/jenkins --hostname=jenkins.{{ cloudapps }}
+  retries: 60
+  wait: 10
+  tags: [ jenkins ]
+
+- name: Patch a Route
+  command: oc patch route/jenkins --patch '{"spec"{{ ':' }}{"tls"{{ ':' }}{"insecureEdgeTerminationPolicy"{{ ':' }} "Redirect","termination"{{ ':' }} "edge"}}}' --namespace {{ jenkins_namespace }}
+  tags: [ jenkins ]

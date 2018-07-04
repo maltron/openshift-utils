@@ -1,0 +1,15 @@
+---
+- name: Creating Blue-Green and Canary Deployments
+  hosts: localhost
+  connection: local
+  vars:
+     domain: maltron.solutionarchitectsredhat.com.br
+     cloudapps: cloudapps.{{ domain }}
+     tooling_namespace: tooling
+  roles: 
+     - { role: git_server, git_server_namespace: "{{ tooling_namespace }}" }
+     - { role: jenkins, jenkins_namespace: "{{ tooling_namespace }}" }
+     - { role: sonarqube, sonarqube_namespace: "{{ tooling_namespace }}" }
+     - { role: nexus, nexus_namespace: "{{ tooling_namespace }}" }
+     - { role: bluegreen, jenkins_namespace: "{{ tooling_namespace }}" }
+     - { role: canary, jenkins_namespace: "{{ tooling_namespace }}" }

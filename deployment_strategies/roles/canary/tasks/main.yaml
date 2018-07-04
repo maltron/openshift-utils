@@ -1,0 +1,100 @@
+- name: Make sure Jenkins is able to handle {{ canary_namespace }}
+  command: oc policy add-role-to-user edit system:serviceaccount:{{ jenkins_namespace }}:jenkins -n {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: Deleting any existing resources
+  command: "{{ item }}"
+  with_items:
+      - "oc delete all -l app=wildfly-mysql --namespace {{ canary_namespace }}"
+      - "oc delete secrets -l app=wildfly-mysql --namespace {{ canary_namespace }}"
+  tags: [ canary ]
+
+- name: "ONE: Creating application {{ application_one }}"
+  command: oc new-app -f https://raw.githubusercontent.com/latam-tech-office/testdrive-cicd/master/ocp/template/wildfly-mysql.yaml -p APPLICATION_NAME={{ application_one }} --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: "ONE: Setting {{ application_one }} initial replicas size: {{ application_one_replicas }}"
+  command: oc scale dc/{{ application_one }}-app --replicas={{ application_one_replicas }} --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: Deleting an ImageStream/wildfly-mysql to avoid collision
+  command: oc delete is/wildfly-mysql --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: "TWO: Creating application {{ application_two }}"
+  command: oc new-app -f https://raw.githubusercontent.com/latam-tech-office/testdrive-cicd/master/ocp/template/wildfly-mysql.yaml -p APPLICATION_NAME={{ application_two }} --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: "TWO: Setting {{ application_two }} initial replicas size: {{ application_two_replicas }}"
+  command: oc scale dc/{{ application_two }}-app --replicas={{ application_two_replicas }} --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: Creating environment variables for each application
+  command: oc env dc/{{ item.deploymentConfig }} DEPLOYMENT_NAME="{{ item.value }}" --namespace {{ canary_namespace }}
+  with_items:
+      - { deploymentConfig: "{{ application_one }}-app", value: "ONE" }
+      - { deploymentConfig: "{{ application_two }}-app", value: "TWO" }
+  tags: [ canary ]
+
+- name: Making sure DeploymentConfig is using Rolling Strategy
+  command: oc patch dc/{{ item }} --patch='{"spec":{"strategy":{"type":"Rolling"}}}' --namespace {{ canary_namespace }}
+  with_items:
+      - "{{ application_one }}-app"
+      - "{{ application_two }}-app"
+  tags: [ canary ]
+
+- name: "Setting readiness probe to http://:8080/ws/ping"
+  command: oc set probe dc/{{ item }} --readiness --initial-delay-seconds=20 --period-seconds=15 --get-url=http://:8080/ws/ping --namespace {{ canary_namespace }}
+  with_items:
+      - "{{ application_one }}-app"
+      - "{{ application_two }}-app"
+  tags: [ canary ]
+
+- name: Deleting existing service and routes from both applications
+  command: oc delete {{ item.resource }} {{ item.name }} --namespace {{ canary_namespace }}
+  with_items:
+      - { resource: "service", name: "{{ application_one }}-app" }
+      - { resource: "route", name: "{{ application_one }}-app" }
+      - { resource: "service", name: "{{ application_two }}-app" }
+      - { resource: "route", name: "{{ application_two }}-app" }
+  tags: [ canary ]
+
+- name: Patch DeploymentConfig to point to the same service
+  command: oc patch dc/{{ item }} --patch='{"spec":{"template":{"metadata":{"labels":{"service":"canary"}}}}}' --namespace {{ canary_namespace }}
+  with_items:
+      - "{{ application_one }}-app"
+      - "{{ application_two }}-app"
+  tags: [ canary ]
+
+- name: Creating a single service with a selector
+  command: oc expose dc/{{ application_one }}-app --name=canary --selector='service=canary' --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: "Patch the Service created with a different SessionAffinity: ClientIP"
+  command: oc patch service/canary --patch '{"spec":{"sessionAffinity":"ClientIP"}}' --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: Finally, let's create a single route which it's going to round robin both pods
+  command: oc expose service/canary --hostname={{ canary_namespace }}.{{ cloudapps }} --namespace {{ canary_namespace }}
+  tags: [ canary ]
+
+- name: Creating all the necessary BuildConfig (which will be available at Jenkins)
+  command: oc create -f {{ buildconfig_folder }}/{{ item }} --namespace {{ jenkins_namespace }}
+  with_items:
+      - deploy-one.yaml
+      - deploy-two.yaml
+  tags: [ canary ]
+
+- name: "Create a label marking BuildConfig: deployment_technique=canary"
+  command: oc label bc/{{ item }} deployment_technique=canary -n {{ jenkins_namespace }}
+  with_items:
+      - deploy-one
+      - deploy-two
+  tags: [ canary ]
+
+- name: Start Building in order to make ready to Deploy
+  command: oc start-build {{ item }} -n {{ jenkins_namespace }}
+  with_items:
+      - deploy-one
+      - deploy-two
+  tags: [ canary ]

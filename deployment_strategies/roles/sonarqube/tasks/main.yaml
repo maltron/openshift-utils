@@ -1,0 +1,8 @@
+- name: Creating Database for SonarQube
+  command: oc new-app postgresql-ephemeral -p POSTGRESQL_USER=sonar -p POSTGRESQL_PASSWORD=sonar -p POSTGRESQL_DATABASE=sonar --namespace {{ sonarqube_namespace }}
+
+- name: Creating SonarQube
+  command: oc new-app docker.io/openshiftdemos/sonarqube:6.0 -e SONARQUBE_JDBC_USERNAME=sonar -e SONARQUBE_JDBC_PASSWORD=sonar -e SONARQUBE_JDBC_URL=jdbc:postgresql://postgresql/sonar --namespace {{ sonarqube_namespace }}
+
+- name: Create a route to SonarQube
+  command: oc expose service/sonarqube --hostname=sonarqube.{{ cloudapps }} --namespace {{ sonarqube_namespace }}

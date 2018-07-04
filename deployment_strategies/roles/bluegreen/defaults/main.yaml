@@ -1,0 +1,4 @@
+bluegreen_namespace: bluegreen-example
+application_blue: tasks-blue
+application_green: tasks-green
+buildconfig_folder: "roles/bluegreen/files"

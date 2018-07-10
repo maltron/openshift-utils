@@ -7,7 +7,7 @@
   tags: [ jenkins ]
 
 - name: Creating a simpler Jenkins Route
-  command: oc expose service/jenkins --hostname=jenkins.{{ cloudapps }}
+  command: oc expose service/jenkins --hostname=jenkins.{{ cloudapps }} --namespace {{ jenkins_namespace }}
   retries: 60
   wait: 10
   tags: [ jenkins ]

@@ -37,6 +37,7 @@
      - name: "Deploying Che"
        command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/che-server-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} --param=CHE_MULTIUSER=true --param=CHE_INFRA_OPENSHIFT_PROJECT='' --namespace {{ che_namespace }}
 
+#     https://www.eclipse.org/che/docs/openshift-admin-guide.html#who-creates-workspace-objects
 #     - name: "(ADMIN) Enabling Eclipse Che to Self-provisioning on OpenShift"
 #       command: oc adm policy add-cluster-role-to-user self-provisioner system:serviceaccount:che:che
 

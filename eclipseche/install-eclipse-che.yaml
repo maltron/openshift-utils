@@ -22,7 +22,7 @@
        command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/postgres-template.yaml" --namespace {{ che_namespace }}
 
      - name: "Deploying Keycloak"
-       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/keycloak-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }}  --namespace {{ che_namespace }}
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/keycloak-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} --namespace {{ che_namespace }}
 
      - name: "Applying Che Server PersistentVolumeClaim"
        command: oc apply --filename="{{ che_context_prefix }}/{{ che_context_directory }}/pvc/che-server-pvc.yaml"  --namespace {{ che_namespace }}
@@ -35,7 +35,10 @@
        delay: 10
 
      - name: "Deploying Che"
-       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/che-server-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} -p CHE_MULTIUSER=true --namespace {{ che_namespace }}
+       command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/che-server-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} --param=CHE_MULTIUSER=true --param=CHE_INFRA_OPENSHIFT_PROJECT='' --namespace {{ che_namespace }}
+
+#     - name: "(ADMIN) Enabling Eclipse Che to Self-provisioning on OpenShift"
+#       command: oc adm policy add-cluster-role-to-user self-provisioner system:serviceaccount:che:che
 
      - name: "Setting a Volume into DeploymentConfig"
        command: oc set volume dc/che --add -m /data --name=che-data-volume --claim-name=che-data-volume --namespace {{ che_namespace }}

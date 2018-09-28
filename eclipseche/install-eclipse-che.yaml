@@ -3,6 +3,7 @@
   hosts: openshift_master_group
   gather_facts: False
   vars:
+     openshift_user: demo
      che_github_repository: "https://github.com/eclipse/che"
      che_context_prefix: "/tmp/eclipseche"
      che_context_directory: "deploy/openshift/templates"
@@ -13,10 +14,18 @@
        git: repo={{ che_github_repository }} dest={{ che_context_prefix }}
        tags: [ git ]
 
-     - name: "Creating project: {{ che_namespace }}"
-       command: oc new-project {{ che_namespace }} --display-name="Eclipse Che"
+     - name: "Delete any existing project: {{ che_namespace }}"
+       command: oc delete project {{ che_namespace }}
        tags: [ new_project ]
-       ignore_errors: True
+       ignore_errors: true
+
+     - name: "Creating project: {{ che_namespace }} for username {{ openshift_user }}"
+       command: oc adm new-project {{ che_namespace }} --display-name="Eclipse Che" --admin={{ openshift_user }}
+       tags: [ new_project ]
+       register: create_namespace
+       until: create_namespace.rc == 0
+       retries: 120
+       delay: 30
 
      - name: "Setting a Node Selector on this namespace: {{ che_namespace }}"
        command: oc annotate --overwrite=true namespace/{{ che_namespace }} openshift.io/node-selector=node-role.kubernetes.io/compute=true --namespace {{ che_namespace }}

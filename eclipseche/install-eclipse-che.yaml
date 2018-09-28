@@ -1,7 +1,7 @@
 ---
 - name: Installing Eclipse Che based on https://www.eclipse.org/che/docs/openshift-multi-user.html#openshift-container-platform
-  hosts: localhost
-  connection: local
+  hosts: openshift_master_group
+  gather_facts: False
   vars:
      che_github_repository: "https://github.com/eclipse/che"
      che_context_prefix: "/tmp/eclipseche"
@@ -17,6 +17,10 @@
        command: oc new-project {{ che_namespace }} --display-name="Eclipse Che"
        tags: [ new_project ]
        ignore_errors: True
+
+     - name: "Setting a Node Selector on this namespace: {{ che_namespace }}"
+       command: oc annotate --overwrite=true namespace/{{ che_namespace }} openshift.io/node-selector=node-role.kubernetes.io/compute=true --namespace {{ che_namespace }}
+       tags: [ new_project ]
 
      - name: "Deploying Postgresql"
        command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/multi/postgres-template.yaml" --namespace {{ che_namespace }}
@@ -38,8 +42,8 @@
        command: oc new-app --file="{{ che_context_prefix }}/{{ che_context_directory }}/che-server-template.yaml" --param=ROUTING_SUFFIX={{ che_routing_suffix }} --param=CHE_MULTIUSER=true --param=CHE_INFRA_OPENSHIFT_PROJECT='' --namespace {{ che_namespace }}
 
 #     https://www.eclipse.org/che/docs/openshift-admin-guide.html#who-creates-workspace-objects
-#     - name: "(ADMIN) Enabling Eclipse Che to Self-provisioning on OpenShift"
-#       command: oc adm policy add-cluster-role-to-user self-provisioner system:serviceaccount:che:che
+     - name: "(ADMIN) Enabling Eclipse Che to Self-provisioning on OpenShift"
+       command: oc adm policy add-cluster-role-to-user self-provisioner system:serviceaccount:che:che
 
      - name: "Setting a Volume into DeploymentConfig"
        command: oc set volume dc/che --add -m /data --name=che-data-volume --claim-name=che-data-volume --namespace {{ che_namespace }}

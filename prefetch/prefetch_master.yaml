@@ -1,0 +1,25 @@
+---
+- name: "MASTER: Prefetching Docker Images from a file"
+  hosts: masters
+  gather_facts: False
+  tasks:
+     - name: "Please set property: master_tar_file"
+       fail: "msg='Please set property: master_tar_file'"
+       when: master_tar_file is not defined or master_tar_file is none
+
+     - name: "Gathering file facts: {{ master_tar_file }}"
+       local_action: stat path={{ master_tar_file }}
+       register: file_status
+
+     - name: "Does it exist file ? {{ master_tar_file }}"
+       fail: msg="File {{ master_tar_file }} does not exists"
+       when: not file_status.stat.exists|bool
+
+     - name: "Copying file: {{ master_tar_file }}"
+       copy: src={{ master_tar_file }} dest=/root
+
+     - name: Start Docker Service
+       service: name=docker state=started
+
+     - name: Loading images from this file
+       command: docker load --input=/root/{{ master_tar_file }}

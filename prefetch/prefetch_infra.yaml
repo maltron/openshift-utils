@@ -1,0 +1,25 @@
+---
+- name: "INFRA: Prefetching Docker Images from a file"
+  hosts: infras
+  gather_facts: False
+  tasks:
+     - name: "Please set property: infra_tar_file"
+       fail: "msg='Please set property: infra_tar_file'"
+       when: infra_tar_file is not defined or infra_tar_file is none
+
+     - name: "Gathering file facts: {{ infra_tar_file }}"
+       local_action: stat path={{ infra_tar_file }}
+       register: file_status
+
+     - name: "Does it exist file ? {{ infra_tar_file }}"
+       fail: msg="File {{ infra_tar_file }} does not exists"
+       when: not file_status.stat.exists|bool
+
+     - name: "Copying file: {{ infra_tar_file }}"
+       copy: src={{ infra_tar_file }} dest=/root
+
+     - name: Start Docker Service
+       service: name=docker state=started
+
+     - name: Loading images from this file
+       command: docker load --input=/root/{{ infra_tar_file }}

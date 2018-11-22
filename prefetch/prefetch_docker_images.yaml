@@ -1,0 +1,13 @@
+---
+- name: Prefetching Docker Images into a OCP Cluster
+  hosts: openshift_master_group
+  gather_facts: False
+  tasks:
+     - name: Copying file: {{ master_tar_file }}
+       copy: src={{ master_tar_file }} dest=/root
+
+     - name: Start Docker Service
+       service: name=docker state=started
+
+     - name: Loading images from this file
+       command: docker load --input=/root/{{ master_tar_file }}

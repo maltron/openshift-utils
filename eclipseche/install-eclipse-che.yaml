@@ -1,14 +1,15 @@
 ---
 - name: Installing Eclipse Che based on https://www.eclipse.org/che/docs/openshift-multi-user.html#openshift-container-platform
-  hosts: openshift_master_group
+  hosts: localhost
+  connection: local
   gather_facts: False
   vars:
-     openshift_user: demo
+     openshift_user: opentlc-mgr
      che_github_repository: "https://github.com/eclipse/che"
      che_context_prefix: "/tmp/eclipseche"
      che_context_directory: "deploy/openshift/templates"
      che_namespace: che
-     che_routing_suffix: cloudapps.maltron.solutionarchitectsredhat.com.br
+     che_routing_suffix: apps.kl3422-f9b9.openshiftworkshop.com
   tasks:
      - name: "Git Cloning: {{ che_github_repository }}"
        git: repo={{ che_github_repository }} dest={{ che_context_prefix }}
@@ -26,6 +27,10 @@
        until: create_namespace.rc == 0
        retries: 120
        delay: 30
+
+     - name: "Relaxing security on this namespace: {{ che_namespace }}"
+       command: oc adm policy add-scc-to-user anyuid -n {{ che_namespace }} -z default
+       tags: [ new_project ]
 
      - name: "Setting a Node Selector on this namespace: {{ che_namespace }}"
        command: oc annotate --overwrite=true namespace/{{ che_namespace }} openshift.io/node-selector=node-role.kubernetes.io/compute=true --namespace {{ che_namespace }}

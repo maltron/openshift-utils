@@ -4,11 +4,12 @@
   connection: local
   gather_facts: False
   vars:
-     username: demo
+     no_prefix: True
+     username: opentlc-mgr
      password: r3dh4t1!
      your_prefix: maltron
      domain: testdrive.com
-     cloudapps: cloudapps.{{ domain }}
+     cloudapps: apps.sanjose-4539.openshiftworkshop.com
   tasks:
      - name: Setting namespace for stage
        set_fact: stage_namespace="{{ your_prefix }}-tasks-stage"
@@ -63,14 +64,14 @@
          - gogs
 
      - name: Creating a Project{{ ':' }} {{ stage_namespace }}
-       command: oc new-project {{ stage_namespace }} --display-name="OpenShift's Tasks{{ ':' }} Stage Site"
+       command: oc adm new-project {{ stage_namespace }} --admin={{ username }} --display-name="OpenShift's Tasks{{ ':' }} Stage Site"
        register: create_namespace
        until: create_namespace.rc == 0
        retries: 60
        delay: 10
 
      - name: Creating a Project{{ ':' }} {{ development_namespace }}
-       command: oc new-project {{ development_namespace }} --display-name="OpenShift's Tasks{{ ':' }} Development Site"
+       command: oc adm new-project {{ development_namespace }} --admin={{ username }} --display-name="OpenShift's Tasks{{ ':' }} Development Site"
        register: create_namespace
        until: create_namespace.rc == 0
        retries: 60
@@ -83,18 +84,25 @@
            - "{{ development_namespace }}"
 
      - name: Creating a Project{{ ':' }} {{ tooling_namespace }}
-       command: oc new-project {{ tooling_namespace }} --display-name="Developer Tooling"
+       command: oc adm new-project {{ tooling_namespace }} --admin={{ username }} --display-name="Developer Tooling"
        register: create_namespace
        until: create_namespace.rc == 0
        retries: 60
        delay: 10
+
+     - name: Relaxing security for all namespaces
+       command: oc adm policy add-scc-to-user anyuid -n {{ item }} -z default
+       with_items: 
+           - "{{ stage_namespace }}"
+           - "{{ development_namespace }}"
+           - "{{ tooling_namespace }}"
 
      - name: "Creating Gogs (GIT Server): {{ gogs_public_url }}"
        command: oc new-app -f http://bit.ly/openshift-gogs-persistent-template -p HOSTNAME={{ gogs_public_url }} -p SKIP_TLS_VERIFY=true --namespace {{ tooling_namespace }}
        tags: [ gogs ]
 
      - name: "Fixing Postgresql version 9.6"
-       command: "oc patch dc/gogs-postgresql --patch='{\"spec\": {\"triggers\": [{\"imageChangeParams\": {\"automatic\": true,\"containerNames\": [\"postgresql\"],\"from\": {\"kind\": \"ImageStreamTag\",\"name\": \"postgresql:9.6\",\"namespace\": \"openshift\"}},\"type\": \"ImageChange\"},{\"type\": \"ConfigChange\"}]}}'"
+       command: "oc patch dc/gogs-postgresql --patch='{\"spec\": {\"triggers\": [{\"imageChangeParams\": {\"automatic\": true,\"containerNames\": [\"postgresql\"],\"from\": {\"kind\": \"ImageStreamTag\",\"name\": \"postgresql:9.6\",\"namespace\": \"openshift\"}},\"type\": \"ImageChange\"},{\"type\": \"ConfigChange\"}]}}' --namespace {{ tooling_namespace }}"
        tags: [ gogs ]
 
      - name: "Change imagePullPolicy on Gogs to: Always -> IfNotPresent"

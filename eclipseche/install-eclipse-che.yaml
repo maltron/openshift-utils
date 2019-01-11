@@ -5,11 +5,12 @@
   gather_facts: False
   vars:
      openshift_user: opentlc-mgr
+     openshift_master_config: "{{ lookup('file', '/etc/origin/master/master-config.yaml') | from_yaml }}"
      che_github_repository: "https://github.com/eclipse/che"
      che_context_prefix: "/tmp/eclipseche"
      che_context_directory: "deploy/openshift/templates"
      che_namespace: che
-     che_routing_suffix: apps.kl3422-f9b9.openshiftworkshop.com
+     che_routing_suffix: "{{ openshift_master_config.routingConfig.subdomain }}"
   tasks:
      - name: "Git Cloning: {{ che_github_repository }}"
        git: repo={{ che_github_repository }} dest={{ che_context_prefix }}

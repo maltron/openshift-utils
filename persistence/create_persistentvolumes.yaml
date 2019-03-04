@@ -125,7 +125,7 @@
        - { pv_index: 108, "type": "huge",   pv_size: 50 }
        - { pv_index: 109, "type": "huge",   pv_size: 50 }
        - { pv_index: 110, "type": "huge",   pv_size: 50 }
-    nfs_server: 192.168.0.100
+    nfs_server: ip-10-0-0-211.us-west-2.compute.internal
     nfs_path_prefix: /var/storage/local
   tasks:
     - name: Installing all the necessary NFS Utils package
@@ -210,10 +210,10 @@
          - pv_yaml 
          - pv_yaml_gitlab
 
-    - name: Change to administrator user in OpenShift
-      command: oc login --username=system:admin
-      tags:
-         - pv_yaml
+#    - name: Change to administrator user in OpenShift
+#      command: oc login --username=system:admin
+#      tags:
+#         - pv_yaml
 
     - name: Delete all existing PV's before creating
       command: oc delete pv --all
@@ -226,11 +226,11 @@
       tags:
          - pv_yaml
 
-    - name: Create PV for Gitlab Shell
-      command: oc create -f /tmp/persistentvolume-gitlab-shell.yaml
-      tags:
-         - pv_yaml
-         - pv_yaml_gitlab
+#    - name: Create PV for Gitlab Shell
+#      command: oc create -f /tmp/persistentvolume-gitlab-shell.yaml
+#      tags:
+#         - pv_yaml
+#         - pv_yaml_gitlab
 
   handlers:
     - name: Restart IPTables Service

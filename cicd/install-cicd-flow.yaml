@@ -5,11 +5,12 @@
   gather_facts: False
   vars:
      no_prefix: True
+     openshift_master_config: "{{ lookup('file', '/etc/origin/master/master-config.yaml') | from_yaml }}"
      username: opentlc-mgr
      password: r3dh4t1!
      your_prefix: maltron
      domain: testdrive.com
-     cloudapps: apps.sanjuan-4983.openshiftworkshop.com
+     cloudapps: "{{ openshift_master_config.routingConfig.subdomain }}"
   tasks:
      - name: Setting namespace for stage
        set_fact: stage_namespace="{{ your_prefix }}-tasks-stage"
@@ -172,20 +173,20 @@
        command: oc new-app jenkins-ephemeral -p ENABLE_OAUTH=true --namespace {{ tooling_namespace }}
        when: no_volume is defined and no_volume | bool
 
-     - name: Wait a while before moving on
-       pause: seconds=30
+#     - name: Wait a while before moving on
+#       pause: seconds=30
 
-     - name: (NO PREFIX) Deleting original Jenkins Route
-       command: oc delete route/jenkins --namespace {{ tooling_namespace }}
-       when: no_prefix is defined and no_prefix | bool
+#     - name: (NO PREFIX) Deleting original Jenkins Route
+#       command: oc delete route/jenkins --namespace {{ tooling_namespace }}
+#       when: no_prefix is defined and no_prefix | bool
 
-     - name: (NO PREFIX) Creating a simpler Jenkins Route
-       command: oc expose service/jenkins --hostname=jenkins.{{ cloudapps }}
-       when: no_prefix is defined and no_prefix | bool
+#     - name: (NO PREFIX) Creating a simpler Jenkins Route
+#       command: oc expose service/jenkins --hostname=jenkins.{{ cloudapps }}
+#       when: no_prefix is defined and no_prefix | bool
 
-     - name: (NO PREFIX) Patch a Route
-       command: oc patch route/jenkins --patch '{"spec"{{ ':' }}{"tls"{{ ':' }}{"insecureEdgeTerminationPolicy"{{ ':' }} "Redirect","termination"{{ ':' }} "edge"}}}' --namespace {{ tooling_namespace }}
-       when: no_prefix is defined and no_prefix | bool
+#     - name: (NO PREFIX) Patch a Route
+#       command: oc patch route/jenkins --patch '{"spec"{{ ':' }}{"tls"{{ ':' }}{"insecureEdgeTerminationPolicy"{{ ':' }} "Redirect","termination"{{ ':' }} "edge"}}}' --namespace {{ tooling_namespace }}
+#       when: no_prefix is defined and no_prefix | bool
 
 #     - name: Applying a variable MAVEN_SLAVE_IMAGE pointing to a working Jenkins's Slave Image
 #       command: oc env dc/jenkins MAVEN_SLAVE_IMAGE=registry.access.redhat.com/openshift3/jenkins-slave-maven-rhel7:3.3-19 --namespace {{ tooling_namespace }}

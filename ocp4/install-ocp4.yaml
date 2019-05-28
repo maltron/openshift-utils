@@ -69,7 +69,7 @@
        command: "ssh-keygen -b 4096 -t rsa -f /root/.ssh/cluster-{{ guid }}-key -q -N \"\""
 
      - name: "Creating a environment variables on /root/.bashrc"
-       lineinfile: path=/root/.bashrc insertafter=EOF line="{{ item }}"
+       lineinfile: path=/root/.bashrc insertafter=EOF line="export {{ item }}"
        with_items: 
            - "GUID={{ guid }}"
            - "KUBECONFIG=/root/cluster-{{ guid }}/auth/kubeconfig"

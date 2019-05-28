@@ -1,0 +1,74 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Preparing host to Install OpenShift 4
+  hosts: localhost
+  connection: local
+  gather_facts: True
+  vars:
+    guid: "{{ ansible_env.HOSTNAME.split('.')[1] }}"
+    aws_region: "us-east-2"
+    aws_client: { url: "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip", filename: "awscli-bundle.zip" }
+    openshift_install: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux-4.1.0-rc.5.tar.gz", filename: "openshift-install.tar.gz" }
+    openshift_client: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux-4.1.0-rc.5.tar.gz", filename: "openshift-client.tar.gz" }
+  tasks:
+     - name: "Setting a default guid in case is missing"
+       set_fact: guid="maltron"
+       when: guid is not defined or guid is none
+
+     - name: "Parameter: aws_key"
+       fail: msg="aws_key is not defined or is empty"
+       when: aws_key is not defined or aws_key is none
+       tags: [ always ]
+
+     - name: "Parameter: aws_secret"
+       fail: msg="aws_secret is not defined or is empty"
+       when: aws_secret is not defined or aws_secret is none
+       tags: [ always ]
+
+     - name: "Downloading files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}"
+       get_url: url={{ item.url }} dest=./{{ item.filename }}
+       with_items: 
+           - "{{ aws_client }}"
+           - "{{ openshift_install }}"
+           - "{{ openshift_client }}"
+
+     - name: "Unarchiving files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}"
+       unarchive: src={{ item.filename }} dest=.
+       with_items: 
+           - "{{ aws_client }}"
+           - "{{ openshift_install }}"
+           - "{{ openshift_client }}"
+
+     - name: "Move files: oc, kubectl, openshift-install to /usr/bin"
+       copy: src={{ item }} dest=/usr/bin mode=755
+       with_items: 
+           - "oc"
+           - "kubectl"
+           - "openshift-install"
+
+     - name: "AWS: Installing Client" 
+       command: ./awscli-bundle/install -i /usr/local/aws -b /bin/aws
+
+     - name: "AWS: Creating Client configuration directory: /root/.aws"
+       file: path=/root/.aws state=directory
+
+     - name: "AWS: Generating AWS Client configuration: /root/.aws/credentials"
+       template: src=templates/aws_config.j2 dest=/root/.aws/credentials force=True
+
+     - name: "Generating SSH Public and Private Keys"
+       command: "ssh-keygen -b 4096 -t rsa -f /root/.ssh/cluster-{{ guid }}-key -q -N \"\""
+
+     - name: "Creating a environment variable on /root/.bashrc: GUID={{ guid }}"
+       lineinfile: path=/root/.bashrc insertafter=EOF line="GUID={{ guid }}"
+       when: guid is defined
+
+     - name: Cleaning
+       file: path={{ item }} state=absent
+       with_items:
+           - oc
+           - kubectl
+           - openshift-install
+           - awscli-bundle
+           - "{{ aws_client.filename }}"
+           - "{{ openshift_install.filename }}"
+           - "{{ openshift_client.filename }}"

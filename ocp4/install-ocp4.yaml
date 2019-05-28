@@ -53,6 +53,9 @@
      - name: "Insert the content from <oc completion bash> into /etc/bash_completion.d/openshift"
        lineinfile: path=/etc/bash_completion.d/openshift insertafter=EOF line={{ oc_completion_bash.stdout }} create=true
 
+     - name: "Creating directory: /root/cluster-{{ guid }}"
+       file: path=/root/cluster-{{ guid }} state=directory
+
      - name: "AWS: Installing Client" 
        command: ./awscli-bundle/install -i /usr/local/aws -b /bin/aws
 

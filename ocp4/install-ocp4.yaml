@@ -46,6 +46,13 @@
            - "kubectl"
            - "openshift-install"
 
+     - name: "Setup Bash completion for the OpenShift command line utility"
+       command: oc completion bash
+       register: oc_completion_bash
+
+     - name: "Insert the content from <oc completion bash> into /etc/bash_completion.d/openshift"
+       lineinfile: path=/etc/bash_completion.d/openshift insertafter=EOF line={{ oc_completion_bash.stdout }} create=true
+
      - name: "AWS: Installing Client" 
        command: ./awscli-bundle/install -i /usr/local/aws -b /bin/aws
 
@@ -58,9 +65,11 @@
      - name: "Generating SSH Public and Private Keys"
        command: "ssh-keygen -b 4096 -t rsa -f /root/.ssh/cluster-{{ guid }}-key -q -N \"\""
 
-     - name: "Creating a environment variable on /root/.bashrc: GUID={{ guid }}"
-       lineinfile: path=/root/.bashrc insertafter=EOF line="GUID={{ guid }}"
-       when: guid is defined
+     - name: "Creating a environment variables on /root/.bashrc"
+       lineinfile: path=/root/.bashrc insertafter=EOF line="{{ item }}"
+       with_items: 
+           - "GUID={{ guid }}"
+           - "KUBECONFIG=/root/cluster-{{ guid }}/auth/kubeconfig"
 
      - name: Cleaning
        file: path={{ item }} state=absent
@@ -72,3 +81,5 @@
            - "{{ aws_client.filename }}"
            - "{{ openshift_install.filename }}"
            - "{{ openshift_client.filename }}"
+
+     - debug: msg="openshift-install create cluster --dir /root/cluster-{{ guid }} --log-level=debug"

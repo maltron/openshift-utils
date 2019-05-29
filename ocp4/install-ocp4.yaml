@@ -10,6 +10,8 @@
     aws_client: { url: "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip", filename: "awscli-bundle.zip" }
     openshift_install: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux-4.1.0-rc.5.tar.gz", filename: "openshift-install.tar.gz" }
     openshift_client: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux-4.1.0-rc.5.tar.gz", filename: "openshift-client.tar.gz" }
+    operator_version: "v0.8.0"
+    operator_sdk: { url: "https://github.com/operator-framework/operator-sdk/releases/download/{{ operator_version }}/operator-sdk-{{ operator_version }}-x86_64-linux-gnu", filename: "operator-sdk" }
   tasks:
      - name: "Setting a default guid in case is missing"
        set_fact: guid="maltron"
@@ -24,6 +26,10 @@
        fail: msg="aws_secret is not defined or is empty"
        when: aws_secret is not defined or aws_secret is none
        tags: [ always ]
+
+     - name: "Downloading Operator SDK"
+       get_url: url={{ operator_sdk.url }} dest=/usr/bin/{{ operator_sdk.filename }} mode=755
+       tags: [ operator ]
 
      - name: "Downloading files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}"
        get_url: url={{ item.url }} dest=./{{ item.filename }}

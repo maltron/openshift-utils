@@ -18,6 +18,7 @@
          - podman
          - buildah
     go_language: { url: "https://dl.google.com/go/go1.12.5.linux-amd64.tar.gz", filename: "golang.tar.gz" }
+    go_workspace: "/root/go_workspace"
   tasks:
      - name: "Setting a default guid in case is missing"
        set_fact: guid="maltron"
@@ -59,8 +60,11 @@
      - name: "Unarchiving Go Language into /usr/bin"
        unarchive: src={{ go_language.filename }} dest=/usr/bin
 
-     - name: "Creating a Go workspace for all Go projects: /root/go_workspace"
-       file: path=/root/go_workspace state=directory
+     - name: "Creating a Go workspace for all Go projects: {{ go_workspace }}"
+       file: path={{ go_workspace }} state=directory
+
+     - name: "Creating a Operators directory within Go workspace: {{ go_workspace }}/src/github.com"
+       file: path={{ go_workspace }}/src/github.com state=directory
 
      - name: "Move files: oc, kubectl, openshift-install to /usr/bin"
        copy: src={{ item }} dest=/usr/bin mode=755
@@ -96,7 +100,7 @@
        with_items: 
            - "GUID={{ guid }}"
            - "KUBECONFIG=/root/cluster-{{ guid }}/auth/kubeconfig"
-           - "GOPATH=/root/go_workspace"
+           - "GOPATH={{ go_workspace }}"
            - "GOROOT=/usr/bin/go"
            - "GO111MODULE=on"
            - "PATH=${PATH}:$GOROOT/bin:${GOPATH}"

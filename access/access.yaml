@@ -17,6 +17,8 @@
 
      - name: Inserting public key into /root/.ssh/authorized_keys
        copy: dest=/root/.ssh/authorized_keys content={{ hostvars['localhost']['public_key'] }}
+     - name: Cloing OpenShift Utils Project
+       git: repo=https://github.com/latam-tech-office/openshift-utils.git dest=/root/utils
 
 - name: Easy acccess at through SSH
   hosts: localhost

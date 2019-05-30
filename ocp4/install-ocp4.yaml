@@ -59,6 +59,9 @@
      - name: "Unarchiving Go Language into /usr/bin"
        unarchive: src={{ go_language.filename }} dest=/usr/bin
 
+     - name: "Creating a Go workspace for all Go projects: /root/go_workspace"
+       file: path=/root/go_workspace state=directory
+
      - name: "Move files: oc, kubectl, openshift-install to /usr/bin"
        copy: src={{ item }} dest=/usr/bin mode=755
        with_items: 
@@ -93,8 +96,10 @@
        with_items: 
            - "GUID={{ guid }}"
            - "KUBECONFIG=/root/cluster-{{ guid }}/auth/kubeconfig"
-           - "GOPATH=/usr/bin/go"
-           - "PATH=${PATH}:$GOPATH/bin"
+           - "GOPATH=/root/go_workspace"
+           - "GOROOT=/usr/bin/go"
+           - "GO111MODULE=on"
+           - "PATH=${PATH}:$GOROOT/bin:${GOPATH}"
 
      - name: Cleaning
        file: path={{ item }} state=absent

@@ -12,6 +12,7 @@
     openshift_client: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux-4.1.0-rc.5.tar.gz", filename: "openshift-client.tar.gz" }
     operator_version: "v0.8.0"
     operator_sdk: { url: "https://github.com/operator-framework/operator-sdk/releases/download/{{ operator_version }}/operator-sdk-{{ operator_version }}-x86_64-linux-gnu", filename: "operator-sdk" }
+    go_language: { url: "https://dl.google.com/go/go1.12.5.linux-amd64.tar.gz", filename: "golang.tar.gz" }
   tasks:
      - name: "Setting a default guid in case is missing"
        set_fact: guid="maltron"
@@ -31,12 +32,13 @@
        get_url: url={{ operator_sdk.url }} dest=/usr/bin/{{ operator_sdk.filename }} mode=755
        tags: [ operator ]
 
-     - name: "Downloading files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}"
+     - name: "Downloading files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}, {{ go_language.filename }}"
        get_url: url={{ item.url }} dest=./{{ item.filename }}
        with_items: 
            - "{{ aws_client }}"
            - "{{ openshift_install }}"
            - "{{ openshift_client }}"
+           - "{{ go_language }}"
 
      - name: "Unarchiving files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}"
        unarchive: src={{ item.filename }} dest=.
@@ -44,6 +46,9 @@
            - "{{ aws_client }}"
            - "{{ openshift_install }}"
            - "{{ openshift_client }}"
+
+     - name: "Unarchiving Go Language into /usr/bin"
+       unarchive: src={{ go_language.filename }} dest=/usr/bin
 
      - name: "Move files: oc, kubectl, openshift-install to /usr/bin"
        copy: src={{ item }} dest=/usr/bin mode=755
@@ -79,6 +84,8 @@
        with_items: 
            - "GUID={{ guid }}"
            - "KUBECONFIG=/root/cluster-{{ guid }}/auth/kubeconfig"
+           - "GOPATH=/usr/bin/go"
+           - "PATH=${PATH}:$GOPATH/bin"
 
      - name: Cleaning
        file: path={{ item }} state=absent
@@ -90,5 +97,6 @@
            - "{{ aws_client.filename }}"
            - "{{ openshift_install.filename }}"
            - "{{ openshift_client.filename }}"
+           - "{{ go_language.filename }}"
 
      - debug: msg="openshift-install create cluster --dir /root/cluster-{{ guid }} --log-level=debug"

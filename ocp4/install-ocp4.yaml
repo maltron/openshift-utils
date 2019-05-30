@@ -12,6 +12,11 @@
     openshift_client: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux-4.1.0-rc.5.tar.gz", filename: "openshift-client.tar.gz" }
     operator_version: "v0.8.0"
     operator_sdk: { url: "https://github.com/operator-framework/operator-sdk/releases/download/{{ operator_version }}/operator-sdk-{{ operator_version }}-x86_64-linux-gnu", filename: "operator-sdk" }
+    operator_packages_needed: 
+         - git
+         - docker
+         - podman
+         - buildah
     go_language: { url: "https://dl.google.com/go/go1.12.5.linux-amd64.tar.gz", filename: "golang.tar.gz" }
   tasks:
      - name: "Setting a default guid in case is missing"
@@ -30,6 +35,10 @@
 
      - name: "Downloading Operator SDK"
        get_url: url={{ operator_sdk.url }} dest=/usr/bin/{{ operator_sdk.filename }} mode=755
+       tags: [ operator ]
+
+     - name: "Installing packages needed for Operator SDK"
+       yum: name={{ operator_packages_needed }} state=latest
        tags: [ operator ]
 
      - name: "Downloading files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}, {{ go_language.filename }}"

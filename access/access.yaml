@@ -1,0 +1,30 @@
+---
+- name: Setup your working environment to get access to RHPDS/OpenTLC environment
+  hosts: localhost
+  connection: local
+  gather_facts: True
+  tasks:
+    - name: "Reading local Public Key: {{ ansible_env.HOME }}/.ssh./id_rsa.pub"
+      set_fact: public_key="{{ lookup('file', '{{ ansible_env.HOME }}/.ssh/id_rsa.pub') }}"
+
+- name: Inserting public key into Bastion
+  hosts: bastion
+  gather_facts: False
+  become: True
+  tasks:
+     - name: "Capturing hostname: {{ inventory_hostname }}"
+       set_fact: bastion_hostname="{{ inventory_hostname }}"
+
+     - name: Inserting public key into /root/.ssh/authorized_keys
+       copy: dest=/root/.ssh/authorized_keys content={{ hostvars['localhost']['public_key'] }}
+
+- name: Easy acccess at through SSH
+  hosts: localhost
+  gather_facts: True
+  tasks: 
+     - name: Replacing the name of the bastion for OCP4
+       replace: path={{ ansible_env.HOME }}/.ssh/config
+                regexp="^        Hostname bastion(.*)opentlc.com"
+                replace="        Hostname {{ hostvars[groups.bastion[0]].bastion_hostname }}"
+
+     - debug: msg="ssh ocp4"

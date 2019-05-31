@@ -42,6 +42,10 @@
        yum: name={{ operator_packages_needed }} state=latest
        tags: [ operator ]
 
+     - name: "Starting Docker Service"
+       service: name=docker state=started
+       tags: [ operator ]
+
      - name: "Downloading files: {{ aws_client.filename }}, {{ openshift_install.filename }}, {{ openshift_client.filename }}, {{ go_language.filename }}"
        get_url: url={{ item.url }} dest=./{{ item.filename }}
        with_items: 

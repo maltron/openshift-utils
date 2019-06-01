@@ -1,2 +1,2 @@
 [bastion]
-bastion.495d.sandbox338.opentlc.com ansible_user=mleal-redhat.com ansible_password=dsxDjAMvJ3kdInKu
+REPLACE_BASTION ansible_user=mleal-redhat.com ansible_password=uqLGQ/46qHLHaHfl aws_key=REPLACE_AWS_KEY aws_secret=REPLACE_AWS_SECRET

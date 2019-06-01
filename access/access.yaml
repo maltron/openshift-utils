@@ -11,14 +11,23 @@
   hosts: bastion
   gather_facts: False
   become: True
+  vars:
+     guid: "{{ inventory_hostname.split('.')[1] }}"
   tasks:
      - name: "Capturing hostname: {{ inventory_hostname }}"
        set_fact: bastion_hostname="{{ inventory_hostname }}"
 
      - name: Inserting public key into /root/.ssh/authorized_keys
        copy: dest=/root/.ssh/authorized_keys content={{ hostvars['localhost']['public_key'] }}
-     - name: Cloing OpenShift Utils Project
+
+     - name: Cloning OpenShift Utils Project
        git: repo=https://github.com/latam-tech-office/openshift-utils.git dest=/root/utils
+
+     - name: Generating command to run install-ocp4 playbook
+       copy: dest=/root/utils/ocp4/runme.sh content="ansible-playbook install-ocp4.yaml -e aws_key={{ aws_key }} -e aws_secret={{ aws_secret }}" mode=755
+
+     - name: Generating a installation OCP4
+       copy: dest=/root/install-ocp4.sh content="openshift-install create cluster --dir /root/cluster-{{ guid }} --log-level debug" mode=755
 
 - name: Easy acccess at through SSH
   hosts: localhost

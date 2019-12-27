@@ -8,10 +8,10 @@
     guid: "{{ ansible_env.HOSTNAME.split('.')[1] }}"
     aws_region: "us-east-2"
     aws_client: { url: "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip", filename: "awscli-bundle.zip" }
-    openshift_version: "4.1.4"
+    openshift_version: "4.2.12"
     openshift_install: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux-{{ openshift_version }}.tar.gz", filename: "openshift-install.tar.gz" }
     openshift_client: { url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux-{{ openshift_version }}.tar.gz", filename: "openshift-client.tar.gz" }
-    operator_version: "v0.8.0"
+    operator_version: "v0.13.0"
     operator_sdk: { url: "https://github.com/operator-framework/operator-sdk/releases/download/{{ operator_version }}/operator-sdk-{{ operator_version }}-x86_64-linux-gnu", filename: "operator-sdk" }
     operator_packages_needed: 
          - git
